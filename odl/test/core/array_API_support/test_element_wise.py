@@ -2,7 +2,7 @@ import pytest
 
 import odl
 from odl.core.util.testutils import (
-    all_almost_equal, all_equal, noise_array, noise_element, noise_elements,
+    all_almost_equal, all_equal, noise_elements,
     isclose, simple_fixture)
 
 
@@ -65,6 +65,9 @@ def integer_tspace(odl_impl_device_pairs):
         device=device
     )
 
+def copy(v, backend):
+    return backend.array_constructor(v)
+
 def test_one_operand_op_real(float_tspace, one_operand_op, inplace):
     if one_operand_op == 'imag' and float_tspace.impl == 'pytorch':
         pytest.skip(f'imag is not implemented for tensors with non-complex dtypes in Pytorch.')
@@ -77,7 +80,7 @@ def test_one_operand_op_real(float_tspace, one_operand_op, inplace):
     x = odl.abs(x) + 0.1
     
     if inplace:
-        if one_operand_op in ['imag', 'sign', 'real', 'positive', 'isnan', 'isinf', 'isfinite']:
+        if one_operand_op in ['imag', 'sign', 'floor', 'trunc', 'real', 'positive', 'isnan', 'isinf', 'isfinite']:
             pytest.skip(f'{one_operand_op} is not supported for inplace updates')
         if one_operand_op == 'signbit':
             out = odl.tensor_space(
@@ -88,11 +91,12 @@ def test_one_operand_op_real(float_tspace, one_operand_op, inplace):
             ).element()
         else:
             out = float_tspace.element()
-        out_arr = out.data
+        out_arr = copy(out.data, float_tspace.array_backend)
         y = odl_fn(x, out=out)
         y_arr = arr_fn(x_arr, out=out_arr)
         assert all_equal(y, y_arr)
         assert all_equal(y, out)
+        assert all_equal(y, out_arr)
     
     else:        
         y = odl_fn(x)
@@ -107,11 +111,12 @@ def test_one_operand_op_real_kwargs(float_tspace, kwargs_op, inplace):
     x_arr, x = noise_elements(float_tspace, 1)
     if inplace:
         out = float_tspace.element()
-        out_arr = out.data
+        out_arr = copy(out.data, float_tspace.array_backend)
         y = odl_fn(x, out=out)
         y_arr = arr_fn(x_arr, out=out_arr)
         assert all_equal(y, y_arr)
         assert all_equal(y, out)
+        assert all_equal(y, out_arr)
     else:
         y = odl_fn(x, min=0, max=1)
         y_arr = arr_fn(x_arr, min=0, max=1)
@@ -126,11 +131,12 @@ def test_one_operand_op_integer(integer_tspace, integer_op, inplace):
     ### ODL operation
     if inplace:
         out = integer_tspace.element()
-        out_arr = out.data
+        out_arr = copy(out.data, integer_tspace.array_backend)
         y = odl_fn(x, out=out)
         y_arr = arr_fn(x_arr, out=out_arr)
         assert all_equal(y, y_arr)
         assert all_equal(y, out)
+        assert all_equal(y, out_arr)
 
     else:
         y = odl_fn(x)
@@ -147,7 +153,7 @@ def test_domain_restricted_op(float_tspace, domain_restricted_op):
     x_arr = x.data
     if inplace:
         out = float_tspace.element()
-        out_arr = out.data
+        out_arr = copy(out.data, float_tspace.array_backend)
         y = odl_fn(x, out=out)
         y_arr = arr_fn(x_arr, out=out_arr)
         assert all_almost_equal(y, y_arr)
@@ -167,7 +173,7 @@ def test_two_operands_op_real(float_tspace, two_operands_op):
     [x_arr, y_arr], [x, y] = noise_elements(float_tspace, 2)
     if inplace:
         out = float_tspace.element()
-        out_arr = out.data
+        out_arr = copy(out.data, float_tspace.array_backend)
         z = odl_fn(x, y, out=out)
         z_arr = arr_fn(x_arr, y_arr, out=out_arr)
         assert all_almost_equal(z, z_arr)
@@ -186,11 +192,12 @@ def test_two_operands_op_integer(integer_tspace, two_operands_op_integer):
     [x_arr, y_arr], [x, y] = noise_elements(integer_tspace, 2)
     if inplace:
         out = integer_tspace.element()
-        out_arr = out.data
+        out_arr = copy(out.data, integer_tspace.array_backend)
         z = odl_fn(x, y, out=out)
         z_arr = arr_fn(x_arr, y_arr, out=out_arr)
         assert all_equal(z, z_arr)
         assert all_equal(z, out)
+        assert all_equal(z, out_arr)
     else:
         z = odl_fn(x, y)
         z_arr = arr_fn(x_arr, y_arr)
